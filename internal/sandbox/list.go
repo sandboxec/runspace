@@ -30,7 +30,7 @@ func (s *Sandboxes) List(ctx context.Context, _ ListOptions) ([]Sandbox, error) 
 
 	for i := range all {
 		codespace := &all[i]
-		if !isRunspace(codespace) {
+		if !isRunspace(codespace.DisplayName) {
 			continue
 		}
 
@@ -117,7 +117,7 @@ func (s *Sandboxes) taggedNames(ctx context.Context, names []string) ([]string, 
 	)
 
 	for _, name := range names {
-		_, err := s.tagged(ctx, name)
+		err := s.tagged(ctx, name)
 		if err != nil {
 			errs = append(errs, err)
 

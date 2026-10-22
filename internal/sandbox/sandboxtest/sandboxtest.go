@@ -381,6 +381,9 @@ func Step(cmd remote.Cmd) string {
 // ErrClosed is returned by Exec on a closed Conn.
 var ErrClosed = errors.New("sandboxtest: connection closed")
 
+// ErrNoCodespace fails a dial of a name that Dialer.GitHub lacks.
+var ErrNoCodespace = errors.New("sandboxtest: no such codespace")
+
 // Conn fakes one SSH connection.
 type Conn struct {
 	Name    string
@@ -450,6 +453,9 @@ func (c *Conn) Cmds() []remote.Cmd {
 
 // Dialer hands out fake Conns.
 type Dialer struct {
+	// GitHub holds the codespaces that dials look up, as the connection
+	// query does. It must be set.
+	GitHub *GitHub
 	// Handler runs every command. Nil means Default.
 	Handler Handler
 	// Err, when set, fails every dial.
@@ -462,8 +468,23 @@ type Dialer struct {
 	conns []*Conn
 }
 
-// Dial returns a new Conn.
-func (d *Dialer) Dial(ctx context.Context, name string, _ func(string)) (*Conn, error) {
+// Dial returns a new Conn. Like remote.Dial, it first looks name up and
+// passes what it found to admit, when admit is non-nil.
+func (d *Dialer) Dial(
+	ctx context.Context, name string, admit func(remote.Codespace) error, _ func(string),
+) (*Conn, error) {
+	codespace, ok := d.GitHub.Codespace(name)
+	if !ok {
+		return nil, fmt.Errorf("look up %s: %w", name, ErrNoCodespace)
+	}
+
+	if admit != nil {
+		err := admit(remote.Codespace{DisplayName: codespace.DisplayName, RepoName: codespace.Repository.Name})
+		if err != nil {
+			return nil, fmt.Errorf("%w", err)
+		}
+	}
+
 	if d.Hook != nil {
 		err := d.Hook(ctx, name)
 		if err != nil {

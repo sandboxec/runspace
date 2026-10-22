@@ -130,7 +130,8 @@ func (s *Sandboxes) create(
 
 	progress("Connecting to " + codespace.Name)
 
-	conn, err := s.dial(ctx, codespace.Name, progress)
+	// No admit: create made this codespace, and deletes it on failure.
+	conn, err := s.dial(ctx, codespace.Name, nil, progress)
 	if err != nil {
 		return res, session{}, err
 	}

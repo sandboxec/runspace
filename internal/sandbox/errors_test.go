@@ -32,8 +32,11 @@ func apiErrorCases() []apiErrorCase {
 
 			return message(err)
 		}, "list codespaces: "},
+		// Delete looks the codespace up first; exec leaves that to the dial.
 		{"lookup", "GET /user/codespaces/cs-1", func(ctx context.Context, rig *fixture) string {
-			return message(rig.Exec(ctx, newExec(testName, newCommand(cmdTrue)), noStreams()))
+			_, err := rig.Delete(ctx, newDelete(testName))
+
+			return message(err)
 		}, "get codespace cs-1: "},
 		{"create", "POST /repos/o/r/codespaces", func(ctx context.Context, rig *fixture) string {
 			_, err := rig.Create(ctx, newCreateOptions(), nil)

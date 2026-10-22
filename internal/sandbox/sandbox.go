@@ -55,9 +55,13 @@ type Conn interface {
 	Close() error
 }
 
-// DialFunc opens a Conn to the named sandbox. progress receives a line for
-// each slow phase.
-type DialFunc func(ctx context.Context, name string, progress func(string)) (Conn, error)
+// DialFunc opens a Conn to the named sandbox. Before it acts on the
+// codespace, it passes what it found to admit, when admit is non-nil, and an
+// error from admit ends the dial with that error. progress receives a line
+// for each slow phase.
+type DialFunc func(
+	ctx context.Context, name string, admit func(remote.Codespace) error, progress func(string),
+) (Conn, error)
 
 // Config configures Sandboxes.
 type Config struct {
@@ -159,13 +163,16 @@ func New(cfg Config) (*Sandboxes, error) {
 
 // remoteDialer returns the DialFunc that connects with remote.Dial.
 func remoteDialer(apiClient, tunnelClient *http.Client, logger *log.Logger) DialFunc {
-	return func(ctx context.Context, name string, progress func(string)) (Conn, error) {
+	return func(
+		ctx context.Context, name string, admit func(remote.Codespace) error, progress func(string),
+	) (Conn, error) {
 		conn, err := remote.Dial(ctx, remote.DialConfig{
 			Name:         name,
 			APIClient:    apiClient,
 			TunnelClient: tunnelClient,
 			Progress:     progress,
 			Logger:       logger,
+			Admit:        admit,
 		})
 		if errors.Is(err, remote.ErrTokenRejected) {
 			return nil, fmt.Errorf("%w (%s)", err, github.TokenHint)
@@ -182,12 +189,14 @@ func remoteDialer(apiClient, tunnelClient *http.Client, logger *log.Logger) Dial
 
 // logDials returns dial, logging each dial and how it ended.
 func logDials(dial DialFunc, logger *log.Logger) DialFunc {
-	return func(ctx context.Context, name string, progress func(string)) (Conn, error) {
+	return func(
+		ctx context.Context, name string, admit func(remote.Codespace) error, progress func(string),
+	) (Conn, error) {
 		logger.Debug("Dialing", "name", name)
 
 		start := time.Now()
 
-		conn, err := dial(ctx, name, progress)
+		conn, err := dial(ctx, name, admit, progress)
 		if err != nil {
 			logger.Debug("Dial failed", "name", name, "err", err)
 
@@ -224,25 +233,33 @@ func (s *Sandboxes) Close() error {
 	return errors.Join(errs...)
 }
 
-// isRunspace reports whether runspace created codespace. Every command that
-// takes a name, ls, and delete --all act only on such codespaces.
-func isRunspace(codespace *github.Codespace) bool {
-	return codespace.DisplayName == DisplayName
+// isRunspace reports whether runspace created the codespace with
+// displayName. Every command that takes a name, ls, and delete --all act only
+// on such codespaces.
+func isRunspace(displayName string) bool {
+	return displayName == DisplayName
 }
 
-// tagged returns the named codespace if runspace created it.
-func (s *Sandboxes) tagged(ctx context.Context, name string) (*github.Codespace, error) {
+// checkTagged returns an error unless runspace created the codespace name,
+// whose display name is displayName.
+func checkTagged(name, displayName string) error {
+	if isRunspace(displayName) {
+		return nil
+	}
+
+	return fmt.Errorf("codespace %s %w (its display name is %q, not %q)",
+		name, errNotTagged, displayName, DisplayName)
+}
+
+// tagged looks up the named codespace and returns an error unless runspace
+// created it.
+func (s *Sandboxes) tagged(ctx context.Context, name string) error {
 	codespace, err := s.api.Get(ctx, name)
 	if err != nil {
-		return nil, fmt.Errorf("%w", err)
+		return fmt.Errorf("%w", err)
 	}
 
-	if !isRunspace(codespace) {
-		return nil, fmt.Errorf("codespace %s %w (its display name is %q, not %q)",
-			name, errNotTagged, codespace.DisplayName, DisplayName)
-	}
-
-	return codespace, nil
+	return checkTagged(name, codespace.DisplayName)
 }
 
 // session is a Conn to a sandbox and the path of its workspace.
@@ -489,19 +506,24 @@ func (s *Sandboxes) adopt(name string, sess session) {
 	}
 }
 
-// open checks the tag and dials.
+// open dials the named sandbox. The dial checks the tag with what its own
+// connection query found, which saves a lookup, before it acts on the
+// codespace.
 func (s *Sandboxes) open(ctx context.Context, name string, progress func(string)) (session, error) {
-	codespace, err := s.tagged(ctx, name)
+	var workspace string
+
+	admit := func(codespace remote.Codespace) error {
+		workspace = workspacePath(codespace.RepoName)
+
+		return checkTagged(name, codespace.DisplayName)
+	}
+
+	conn, err := s.dial(ctx, name, admit, progress)
 	if err != nil {
 		return session{}, err
 	}
 
-	conn, err := s.dial(ctx, name, progress)
-	if err != nil {
-		return session{}, err
-	}
-
-	return session{conn: conn, workspace: workspacePath(codespace.Repository.Name)}, nil
+	return session{conn: conn, workspace: workspace}, nil
 }
 
 func workspacePath(repo string) string {

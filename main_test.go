@@ -62,7 +62,7 @@ func newHarness(t *testing.T, handler sandboxtest.Handler) *harness {
 	t.Helper()
 
 	fakeGitHub := newFakeGitHub()
-	dialer := &sandboxtest.Dialer{Handler: handler, Err: nil, Hook: nil}
+	dialer := &sandboxtest.Dialer{GitHub: fakeGitHub, Handler: handler, Err: nil, Hook: nil}
 	stdout, stderr := new(bytes.Buffer), new(bytes.Buffer)
 
 	rig := &harness{
@@ -123,8 +123,10 @@ func availableCodespace(name, displayName string) github.Codespace {
 func newFakeSandboxes(
 	fake *sandboxtest.GitHub, dialer *sandboxtest.Dialer, logger *log.Logger, reuse bool,
 ) (*sandbox.Sandboxes, error) {
-	dial := func(ctx context.Context, name string, progress func(string)) (sandbox.Conn, error) {
-		conn, err := dialer.Dial(ctx, name, progress)
+	dial := func(
+		ctx context.Context, name string, admit func(remote.Codespace) error, progress func(string),
+	) (sandbox.Conn, error) {
+		conn, err := dialer.Dial(ctx, name, admit, progress)
 		if err != nil {
 			return nil, relay(err)
 		}
