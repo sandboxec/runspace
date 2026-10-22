@@ -46,14 +46,44 @@ bound by that rule; see [Limitations](#limitations).
 
 ## Install
 
-* from source with Go 1.26 or later:
+The install script downloads the prebuilt binary for your system from the
+[releases page](https://github.com/sandboxec/runspace/releases) and checks it
+against the release's SHA-256 checksums before installing it.
+
+* on Linux and macOS, into `~/.local/bin`:
+
+  ```sh
+  curl -fsSL https://get.sandbox.ec/runspace | sh
+  ```
+
+* on Windows, in PowerShell, into `%LOCALAPPDATA%\Programs\runspace`, which
+  the script adds to your user `Path`:
+
+  ```powershell
+  irm https://get.sandbox.ec/runspace.ps1 | iex
+  ```
+
+Both scripts install the latest release unless `RUNSPACE_VERSION` names
+another, such as `v0.1.0`, and install into `RUNSPACE_INSTALL_DIR` when it is
+set. The shell script also takes the directory and version as arguments:
+
+```sh
+curl -fsSL https://get.sandbox.ec/runspace | sh -s -- -b ~/bin v0.1.0
+```
+
+To keep the PowerShell script from changing your `Path`, set
+`RUNSPACE_NO_MODIFY_PATH=1`.
+
+Alternatively:
+
+* build from source with Go 1.26 or later:
 
   ```sh
   go install go.sandbox.ec/runspace@v0.1.0
   ```
 
-* or download a prebuilt binary from the 
-[releases page](https://github.com/sandboxec/runspace/releases).
+* or download a prebuilt binary from the
+  [releases page](https://github.com/sandboxec/runspace/releases).
 
 ## Authenticate
 
