@@ -12,7 +12,7 @@ You need:
 - make, and bash for the scripts in `scripts/`.
 - A C compiler, such as gcc or clang. `make check` runs the tests with the
   race detector, which needs cgo.
-- [golangci-lint](https://golangci-lint.run) v2.13.2 on `PATH`, for
+- [golangci-lint](https://golangci-lint.run) v2.15.0 on `PATH`, for
   `make check`.
 
 Build the binary into `build/bin/runspace`:

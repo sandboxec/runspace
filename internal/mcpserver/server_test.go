@@ -272,8 +272,6 @@ func TestOversizedDiff(t *testing.T) {
 }
 
 // Relative host paths resolve against the working directory.
-//
-//nolint:paralleltest // t.Chdir changes the process-wide working directory
 func TestRelativeHostPaths(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)

@@ -187,8 +187,6 @@ func TestLogOutputFile(t *testing.T) {
 
 // RUNSPACE_LOG_OUTPUT is always a path, so stdout and stderr name files in
 // the current directory.
-//
-//nolint:paralleltest // t.Chdir changes the process-wide working directory
 func TestLogOutputNamesAreFiles(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("runspace holds the log file open until it exits, so Windows cannot remove the test's directory")
