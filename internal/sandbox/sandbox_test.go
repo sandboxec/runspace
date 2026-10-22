@@ -308,7 +308,11 @@ func (c *cacheTest) longCallKeepsConn(conn *sandboxtest.Conn) {
 	}
 
 	close(release)
-	<-longDone
+
+	err := <-longDone
+	if err != nil {
+		c.t.Fatal(err)
+	}
 }
 
 // Idle: closed after IdleClose without a call.
