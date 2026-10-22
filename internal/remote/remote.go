@@ -287,11 +287,19 @@ func (c *Conn) Exec(ctx context.Context, cmd Cmd) (int, error) {
 		return 0, fmt.Errorf("start command: %w", err)
 	}
 
-	waited := make(chan error, 1)
-	go func() { waited <- sess.Wait() }()
+	// ended is closed once the command ends, and waitErr then says how.
+	var waitErr error
+
+	ended := make(chan struct{})
+
+	go func() {
+		waitErr = sess.Wait()
+
+		close(ended)
+	}()
 
 	select {
-	case err := <-waited:
+	case <-ended:
 		// x/crypto reports an exit status ahead of a stream failure, but a
 		// failed stream means the result is incomplete either way.
 		lerr := local.failure()
@@ -299,11 +307,11 @@ func (c *Conn) Exec(ctx context.Context, cmd Cmd) (int, error) {
 			return 0, &StreamError{Err: lerr}
 		}
 
-		return exitCode(err)
+		return exitCode(waitErr)
 	case <-ctx.Done():
 	}
 
-	c.terminate(sess, waited)
+	c.terminate(sess, ended)
 
 	return 0, cause(ctx)
 }
@@ -319,8 +327,8 @@ func attachTTY(sess *ssh.Session, tty *os.File) (func(), error) {
 }
 
 // terminate stops a command whose context is done: it sends SIGTERM, waits
-// up to the signal grace for waited, then closes the session.
-func (c *Conn) terminate(sess *ssh.Session, waited <-chan error) {
+// up to the signal grace for ended to close, then closes the session.
+func (c *Conn) terminate(sess *ssh.Session, ended <-chan struct{}) {
 	// sshd delivers the signal to the session's process group.
 	_ = sess.Signal(ssh.SIGTERM)
 
@@ -328,7 +336,7 @@ func (c *Conn) terminate(sess *ssh.Session, waited <-chan error) {
 	defer grace.Stop()
 
 	select {
-	case <-waited:
+	case <-ended:
 	case <-grace.C:
 		// Close only asks the peer to close the channel. Wait for that
 		// briefly, but never hang on a stalled or hostile peer: the Wait
@@ -336,7 +344,7 @@ func (c *Conn) terminate(sess *ssh.Session, waited <-chan error) {
 		_ = sess.Close()
 
 		select {
-		case <-waited:
+		case <-ended:
 		case <-time.After(c.timing.CloseWait):
 		}
 	}
