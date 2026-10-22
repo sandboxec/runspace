@@ -47,6 +47,8 @@ archives:
           mtime: "{{ .CommitDate }}"
       - src: README.md
         info: *fileinfo
+      - src: SKILL.md
+        info: *fileinfo
       - src: internal/csconn/LICENSE
         dst: LICENSE.cli
         info: *fileinfo

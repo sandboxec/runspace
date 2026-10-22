@@ -291,6 +291,18 @@ Afterwards:
   `git apply --stat --summary` for symlinks (mode `120000`) and for changes
   to `.github/`, `.husky/`, or `.pre-commit-config.yaml`.
 
+### Agent skill
+
+[SKILL.md](SKILL.md) is an [Agent Skill](https://agentskills.io) that
+teaches an agent the runspace workflow, through the CLI or the MCP tools.
+To install it, replace `.AGENT` with your agent's configuration directory:
+
+```sh
+mkdir -p ~/.AGENT/skills/runspace
+curl -fsSL -o ~/.AGENT/skills/runspace/SKILL.md \
+  https://raw.githubusercontent.com/sandboxec/runspace/base/SKILL.md
+```
+
 ## Limitations
 
 - **Undocumented protocol.** The connection depends on an internal REST
