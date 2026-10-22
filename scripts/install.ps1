@@ -7,7 +7,7 @@
 #
 #   irm https://get.sandbox.ec/runspace.ps1 | iex
 #
-# The version is a release tag such as v0.1.0 and defaults to
+# The version is a release tag such as v0.1.1 and defaults to
 # RUNSPACE_VERSION, or else the latest release. The binary goes into dir,
 # which defaults to RUNSPACE_INSTALL_DIR, or else
 # %LOCALAPPDATA%\Programs\runspace. Any value in RUNSPACE_NO_MODIFY_PATH

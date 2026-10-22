@@ -8,9 +8,9 @@
 # Usage: scripts/install.sh [-b <dir>] [<version>]
 #
 #   curl -fsSL https://get.sandbox.ec/runspace | sh
-#   curl -fsSL https://get.sandbox.ec/runspace | sh -s -- -b ~/bin v0.1.0
+#   curl -fsSL https://get.sandbox.ec/runspace | sh -s -- -b ~/bin v0.1.1
 #
-# The version is a release tag such as v0.1.0 and defaults to
+# The version is a release tag such as v0.1.1 and defaults to
 # RUNSPACE_VERSION, or else the latest release. The binary goes into dir,
 # which defaults to RUNSPACE_INSTALL_DIR, or else ~/.local/bin. The script
 # needs curl or wget, tar, and sha256sum or shasum.

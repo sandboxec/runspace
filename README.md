@@ -64,11 +64,11 @@ against the release's SHA-256 checksums before installing it.
   ```
 
 Both scripts install the latest release unless `RUNSPACE_VERSION` names
-another, such as `v0.1.0`, and install into `RUNSPACE_INSTALL_DIR` when it is
+another, such as `v0.1.1`, and install into `RUNSPACE_INSTALL_DIR` when it is
 set. The shell script also takes the directory and version as arguments:
 
 ```sh
-curl -fsSL https://get.sandbox.ec/runspace | sh -s -- -b ~/bin v0.1.0
+curl -fsSL https://get.sandbox.ec/runspace | sh -s -- -b ~/bin v0.1.1
 ```
 
 To keep the PowerShell script from changing your `Path`, set
@@ -79,7 +79,7 @@ Alternatively:
 * build from source with Go 1.26 or later:
 
   ```sh
-  go install go.sandbox.ec/runspace@v0.1.0
+  go install go.sandbox.ec/runspace@v0.1.1
   ```
 
 * or download a prebuilt binary from the
