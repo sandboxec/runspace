@@ -1,0 +1,71 @@
+# Release definition. A pushed v* tag builds a draft GitHub release that a
+# person reviews and publishes.
+version: 2
+
+project_name: runspace
+
+before:
+  hooks:
+    # Fails the release on a forbidden, restricted, or unknown license and
+    # saves the third-party license texts for every target.
+    - scripts/licenses.sh
+
+builds:
+  - id: runspace
+    main: .
+    binary: runspace
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    # Only -s -w: the default ldflags stamp the build time, and the version
+    # comes from the build info, which Go stamps from the git tag.
+    ldflags:
+      - -s -w
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    # Fixed owners, modes, and times, so the archives depend only on the
+    # commit, not on who builds them.
+    builds_info:
+      owner: root
+      group: root
+      mode: 0755
+      mtime: "{{ .CommitDate }}"
+    files:
+      - src: LICENSE
+        info: &fileinfo
+          owner: root
+          group: root
+          mode: 0644
+          mtime: "{{ .CommitDate }}"
+      - src: README.md
+        info: *fileinfo
+      - src: internal/csconn/LICENSE
+        dst: LICENSE.cli
+        info: *fileinfo
+      - src: build/licenses/**/*
+        dst: third_party_licenses
+        info: *fileinfo
+
+checksum:
+  algorithm: sha256
+
+release:
+  github:
+    owner: sandboxec
+    name: runspace
+  draft: true
+
+changelog:
+  use: git
+  sort: asc
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
