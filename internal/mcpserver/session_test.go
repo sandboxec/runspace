@@ -298,7 +298,7 @@ func TestShutdownOnEOF(t *testing.T) {
 
 	github := new(sandboxtest.GitHub)
 	started := make(chan struct{}, 1)
-	dialer := newDialer(userCmd(func(ctx context.Context, cmd remote.Cmd) (int, error) {
+	dialer := newDialer(github, userCmd(func(ctx context.Context, cmd remote.Cmd) (int, error) {
 		started <- struct{}{}
 
 		return blockUntilCancelled(ctx, cmd)
@@ -348,7 +348,7 @@ func TestServeCancelledBySignal(t *testing.T) {
 
 	github := new(sandboxtest.GitHub)
 	started := make(chan struct{})
-	dialer := newDialer(userCmd(func(ctx context.Context, cmd remote.Cmd) (int, error) {
+	dialer := newDialer(github, userCmd(func(ctx context.Context, cmd remote.Cmd) (int, error) {
 		close(started)
 
 		return blockUntilCancelled(ctx, cmd)
@@ -381,7 +381,8 @@ func TestServeCancelledBySignal(t *testing.T) {
 func TestServeLogsTheSDK(t *testing.T) {
 	t.Parallel()
 
-	server := serve(context.Background(), t, newSandboxes(t, new(sandboxtest.GitHub), newDialer(nil), nil), log.DebugLevel)
+	github := new(sandboxtest.GitHub)
+	server := serve(context.Background(), t, newSandboxes(t, github, newDialer(github, nil), nil), log.DebugLevel)
 	_ = server.stdin.Close()
 
 	err := server.result(t, "Serve did not return on EOF")
@@ -400,7 +401,8 @@ func TestServeQuietByDefault(t *testing.T) {
 	t.Parallel()
 
 	serveCtx, stop := context.WithCancel(context.Background())
-	server := serve(serveCtx, t, newSandboxes(t, new(sandboxtest.GitHub), newDialer(nil), nil), log.InfoLevel)
+	github := new(sandboxtest.GitHub)
+	server := serve(serveCtx, t, newSandboxes(t, github, newDialer(github, nil), nil), log.InfoLevel)
 
 	stop()
 

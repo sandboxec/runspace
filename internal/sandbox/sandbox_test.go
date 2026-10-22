@@ -81,6 +81,26 @@ func TestOnlyTaggedCodespaces(t *testing.T) {
 	}
 }
 
+// A command leaves the lookup to the dial, whose connection query reports
+// the tag too, so it makes no REST call of its own.
+func TestCommandsLookUpOnlyThroughTheDial(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	rig := newFixture(t, false)
+	name := rig.mustCreate(ctx, t)
+	before := len(rig.gh.Calls())
+
+	err := rig.Exec(ctx, newExec(name, newCommand(cmdTrue)), noStreams())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if calls := rig.gh.Calls()[before:]; len(calls) != 0 {
+		t.Errorf("exec called the REST API: %v", calls)
+	}
+}
+
 // diffFailures are remote diffs that must leave no file behind.
 func diffFailures() map[string]sandboxtest.Handler {
 	failAfterPartial := func(code int, end error) sandboxtest.Handler {

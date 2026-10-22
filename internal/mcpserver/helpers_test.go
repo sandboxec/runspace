@@ -110,8 +110,10 @@ func newSandboxes(
 		Token:     "",
 		Getenv:    func(string) string { return "" },
 		APIClient: github.Client(),
-		Dial: func(ctx context.Context, name string, report func(string)) (sandbox.Conn, error) {
-			conn, err := dialer.Dial(ctx, name, report)
+		Dial: func(
+			ctx context.Context, name string, admit func(remote.Codespace) error, report func(string),
+		) (sandbox.Conn, error) {
+			conn, err := dialer.Dial(ctx, name, admit, report)
 			if err != nil {
 				return nil, fmt.Errorf("dial %s: %w", name, err)
 			}
@@ -132,7 +134,8 @@ func newFixture(t *testing.T, handler sandboxtest.Handler) *fixture {
 	t.Helper()
 
 	logger, logs := newDebugLogger()
-	github, dialer := new(sandboxtest.GitHub), newDialer(handler)
+	github := new(sandboxtest.GitHub)
+	dialer := newDialer(github, handler)
 	sandboxes := newSandboxes(t, github, dialer, logger)
 	progress := make(chan string, 64)
 	ctx := context.Background()
@@ -162,9 +165,10 @@ func newFixture(t *testing.T, handler sandboxtest.Handler) *fixture {
 	return &fixture{github: github, dialer: dialer, sandboxes: sandboxes, client: client, progress: progress, logs: logs}
 }
 
-// newDialer returns a Dialer whose Conns run handler; nil runs the defaults.
-func newDialer(handler sandboxtest.Handler) *sandboxtest.Dialer {
-	return &sandboxtest.Dialer{Handler: handler, Err: nil, Hook: nil}
+// newDialer returns a Dialer of the codespaces in github whose Conns run
+// handler; nil runs the defaults.
+func newDialer(github *sandboxtest.GitHub, handler sandboxtest.Handler) *sandboxtest.Dialer {
+	return &sandboxtest.Dialer{GitHub: github, Handler: handler, Err: nil, Hook: nil}
 }
 
 func clientInfo() *mcp.Implementation {

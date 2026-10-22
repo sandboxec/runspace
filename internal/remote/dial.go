@@ -36,6 +36,17 @@ type DialConfig struct {
 	Progress func(string)
 	// Logger, when non-nil, receives a debug line for each step.
 	Logger *log.Logger
+	// Admit, when non-nil, receives the codespace that the connection query
+	// found, before Dial acts on it in any way, such as starting it. An
+	// error from Admit ends the dial with that error.
+	Admit func(Codespace) error
+}
+
+// Codespace is what the connection query reports to DialConfig.Admit.
+type Codespace struct {
+	DisplayName string
+	// RepoName is the name of the codespace's repository, without its owner.
+	RepoName string
 }
 
 var (
@@ -113,16 +124,23 @@ func abort(teardown []func() error, err error) error {
 	return err
 }
 
-// openTunnel queries the codespace's connection details and opens the tunnel
-// to it, starting the codespace if it is stopped. No GitHub credentials are
-// involved after the query.
+// openTunnel queries the codespace's connection details, passes the
+// codespace to cfg.Admit, and opens the tunnel to it, starting the codespace
+// if it is stopped. No GitHub credentials are involved after the query.
 func openTunnel(ctx context.Context, cfg DialConfig) (*connection.CodespaceConnection, error) {
 	// Connection query: GET /user/codespaces/{name}?internal=true&refresh=true.
 	client := api.New(cfg.APIClient, cfg.TunnelClient, github.DefaultAPIURL)
 
 	codespace, err := client.GetCodespace(ctx, cfg.Name, true)
 	if err != nil {
-		return nil, queryError(err)
+		return nil, queryError(cfg.Name, err)
+	}
+
+	if cfg.Admit != nil {
+		err = cfg.Admit(admitted(codespace))
+		if err != nil {
+			return nil, fmt.Errorf("%w", err)
+		}
 	}
 
 	// Tunnel, once the codespace is ready.
@@ -134,15 +152,25 @@ func openTunnel(ctx context.Context, cfg DialConfig) (*connection.CodespaceConne
 	return tunnel, nil
 }
 
-// queryError describes a failed connection query, marking a refused token.
-func queryError(err error) error {
+// admitted returns what DialConfig.Admit learns about codespace.
+func admitted(codespace *api.Codespace) Codespace {
+	// api.Repository decodes only the OWNER/REPO name.
+	_, repoName, _ := strings.Cut(codespace.Repository.FullName, "/")
+
+	return Codespace{DisplayName: codespace.DisplayName, RepoName: repoName}
+}
+
+// queryError describes the failed connection query of codespace name,
+// marking a refused token. Commands that take a name look the codespace up
+// only through this query, so the message names it.
+func queryError(name string, err error) error {
 	var statusErr *api.StatusError
 	if errors.As(err, &statusErr) &&
 		(statusErr.StatusCode == http.StatusUnauthorized || statusErr.StatusCode == http.StatusForbidden) {
-		return fmt.Errorf("get codespace connection: %w: %w", ErrTokenRejected, err)
+		return fmt.Errorf("get codespace %s: %w: %w", name, ErrTokenRejected, err)
 	}
 
-	return fmt.Errorf("get codespace connection: %w", err)
+	return fmt.Errorf("get codespace %s: %w", name, err)
 }
 
 // startSSHServer asks the codespace agent to start sshd for the authorized

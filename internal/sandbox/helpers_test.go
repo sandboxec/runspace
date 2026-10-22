@@ -46,14 +46,17 @@ type fixture struct {
 func newFixture(t *testing.T, reuse bool) *fixture {
 	t.Helper()
 
-	fakeGitHub, dialer := new(sandboxtest.GitHub), new(sandboxtest.Dialer)
+	fakeGitHub := new(sandboxtest.GitHub)
+	dialer := &sandboxtest.Dialer{GitHub: fakeGitHub, Handler: nil, Err: nil, Hook: nil}
 
 	sandboxes, err := sandbox.New(sandbox.Config{
 		Token:     "",
 		Getenv:    func(string) string { return "" },
 		APIClient: fakeGitHub.Client(),
-		Dial: func(ctx context.Context, name string, progress func(string)) (sandbox.Conn, error) {
-			conn, err := dialer.Dial(ctx, name, progress)
+		Dial: func(
+			ctx context.Context, name string, admit func(remote.Codespace) error, progress func(string),
+		) (sandbox.Conn, error) {
+			conn, err := dialer.Dial(ctx, name, admit, progress)
 			if err != nil {
 				return nil, fmt.Errorf("fake dial: %w", err)
 			}
